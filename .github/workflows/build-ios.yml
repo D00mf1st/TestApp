@@ -24,7 +24,7 @@ jobs:
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --non-interactive
 
-      - name: Build IPA
+      - name: Build Archive
         run: |
           cd ios
           xcodebuild -workspace TestApp.xcworkspace \
@@ -37,13 +37,16 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-          xcodebuild -exportArchive \
-            -archivePath build/TestApp.xcarchive \
-            -exportPath build/output \
-            -exportOptionsPlist ../exportOptions.plist
+      - name: Package IPA manually
+        run: |
+          mkdir -p ios/build/output/Payload
+          cp -r ios/build/TestApp.xcarchive/Products/Applications/TestApp.app \
+            ios/build/output/Payload/
+          cd ios/build/output
+          zip -r TestApp.ipa Payload
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: TestApp-IPA
-          path: ios/build/output/*.ipa
+          path: ios/build/output/TestApp.ipa
