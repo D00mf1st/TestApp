@@ -29,38 +29,45 @@ jobs:
           cd ios
           pod install --repo-update
 
+      - name: Patch xcframework build scripts
+        run: |
+          find ios/Pods -name "*.sh" | while read f; do
+            if grep -q "xcframework" "$f" 2>/dev/null; then
+              echo "Patching: $f"
+              sed -i 's/xcodebuild /xcodebuild CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" /g' "$f"
+            fi
+          done
+
       - name: Build App
         run: |
-          WORKSPACE=$(find ios -name "*.xcworkspace" -maxdepth 2 | head -1)
-          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
-          echo "Workspace: $WORKSPACE / Scheme: $SCHEME"
+          cd ios
           xcodebuild \
-            -workspace "$WORKSPACE" \
-            -scheme "$SCHEME" \
+            -workspace TestApp.xcworkspace \
+            -scheme TestApp \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath ios/build/DerivedData \
+            -derivedDataPath build/DerivedData \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
             ENABLE_BITCODE=NO \
-            build 2>&1 | tee /tmp/build.log | tail -20
-          echo "Build Exit Code: $?"
+            build 2>&1 | tee /tmp/build.log | tail -30
 
-      - name: Debug - Alles finden
-        if: always()
+      - name: Package IPA
         run: |
-          echo "=== Alle .app Ordner ==="
-          find ios/build -name "*.app" 2>/dev/null || echo "Keine .app gefunden"
+          APP=$(find ios/build/DerivedData/Build/Products/Release-iphoneos \
+            -maxdepth 1 -name "*.app" | head -1)
+          echo "App: $APP ($(du -sh "$APP" | cut -f1))"
+          mkdir -p ios/build/output/Payload
+          cp -r "$APP" ios/build/output/Payload/TestApp.app
+          cd ios/build/output
+          zip -r TestApp.ipa Payload
+          ls -lh TestApp.ipa
 
-          echo ""
-          echo "=== Alle Binaries in DerivedData ==="
-          find ios/build/DerivedData -type f -not -name "*.o" \
-            -not -name "*.d" -not -name "*.swp" \
-            -not -path "*/ModuleCache*" \
-            | head -40
-
-          echo ""
-          echo "=== Build Log - letzte Fehler ==="
-          grep -E "^(error:|warning:|FAILED|BUILD)" /tmp/build.log | tail -20
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestApp-IPA
+          path: ios/build/output/TestApp.ipa
