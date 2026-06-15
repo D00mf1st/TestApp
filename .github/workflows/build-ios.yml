@@ -29,7 +29,7 @@ jobs:
           cd ios
           pod install --repo-update
 
-      - name: Archive App
+      - name: Build App
         run: |
           WORKSPACE=$(find ios -name "*.xcworkspace" -maxdepth 2 | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
@@ -39,39 +39,28 @@ jobs:
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
-            -archivePath ios/build/TestApp.xcarchive \
-            archive \
+            -derivedDataPath ios/build/DerivedData \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            SKIP_INSTALL=NO \
-            | tail -30
+            ENABLE_BITCODE=NO \
+            build 2>&1 | tee /tmp/build.log | tail -20
+          echo "Build Exit Code: $?"
 
-      - name: Debug Archive
+      - name: Debug - Alles finden
+        if: always()
         run: |
-          echo "=== Archive Inhalt ==="
-          find ios/build/TestApp.xcarchive -name "*.app" | head -10
-          echo "=== App Binary suchen ==="
-          find ios/build/TestApp.xcarchive -type f | grep -v ".dSYM" | head -30
+          echo "=== Alle .app Ordner ==="
+          find ios/build -name "*.app" 2>/dev/null || echo "Keine .app gefunden"
 
-      - name: Package IPA aus Archive
-        run: |
-          APP=$(find ios/build/TestApp.xcarchive/Products \
-            -name "*.app" -not -name "*.appex" | head -1)
-          echo "App gefunden: $APP"
-          echo "App Größe: $(du -sh "$APP")"
-          mkdir -p ios/build/output/Payload
-          cp -r "$APP" ios/build/output/Payload/TestApp.app
-          cd ios/build/output
-          zip -r TestApp.ipa Payload
-          echo "IPA Größe: $(ls -lh TestApp.ipa)"
+          echo ""
+          echo "=== Alle Binaries in DerivedData ==="
+          find ios/build/DerivedData -type f -not -name "*.o" \
+            -not -name "*.d" -not -name "*.swp" \
+            -not -path "*/ModuleCache*" \
+            | head -40
 
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: TestApp-IPA
-          path: ios/build/output/TestApp.ipa
+          echo ""
+          echo "=== Build Log - letzte Fehler ==="
+          grep -E "^(error:|warning:|FAILED|BUILD)" /tmp/build.log | tail -20
