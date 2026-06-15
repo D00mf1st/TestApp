@@ -1,0 +1,49 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Expo CLI
+        run: npm install -g @expo/cli
+
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios --non-interactive
+
+      - name: Build IPA
+        run: |
+          cd ios
+          xcodebuild -workspace TestApp.xcworkspace \
+            -scheme TestApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/TestApp.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+          xcodebuild -exportArchive \
+            -archivePath build/TestApp.xcarchive \
+            -exportPath build/output \
+            -exportOptionsPlist ../exportOptions.plist
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestApp-IPA
+          path: ios/build/output/*.ipa
