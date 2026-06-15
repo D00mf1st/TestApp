@@ -29,49 +29,46 @@ jobs:
           cd ios
           pod install --repo-update
 
-      - name: Build .app
+      - name: Archive App
         run: |
           WORKSPACE=$(find ios -name "*.xcworkspace" -maxdepth 2 | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "Workspace: $WORKSPACE / Scheme: $SCHEME"
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath ios/build/DerivedData \
+            -archivePath ios/build/TestApp.xcarchive \
+            archive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
             DEVELOPMENT_TEAM="" \
-            build 2>&1 | tail -30
+            PROVISIONING_PROFILE="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            SKIP_INSTALL=NO \
+            | tail -30
 
-      - name: Package IPA
+      - name: Debug Archive
         run: |
-          APP=$(find ios/build/DerivedData/Build/Products/Release-iphoneos \
-            -maxdepth 1 -name "*.app" | head -1)
-          echo "App Ordner: $APP"
-          echo "App Inhalt:"
-          ls -la "$APP"
+          echo "=== Archive Inhalt ==="
+          find ios/build/TestApp.xcarchive -name "*.app" | head -10
+          echo "=== App Binary suchen ==="
+          find ios/build/TestApp.xcarchive -type f | grep -v ".dSYM" | head -30
 
-          # Info.plist aus Quellcode kopieren falls fehlend
-          if [ ! -f "$APP/Info.plist" ]; then
-            echo "Info.plist fehlt im Bundle – kopiere aus Quellcode..."
-            SOURCE=$(find ios -name "Info.plist" \
-              -not -path "*/build/*" \
-              -not -path "*/Pods/*" | head -1)
-            echo "Quelle: $SOURCE"
-            cp "$SOURCE" "$APP/Info.plist"
-          fi
-
-          echo "Info.plist vorhanden:"
-          ls -la "$APP/Info.plist"
-
+      - name: Package IPA aus Archive
+        run: |
+          APP=$(find ios/build/TestApp.xcarchive/Products \
+            -name "*.app" -not -name "*.appex" | head -1)
+          echo "App gefunden: $APP"
+          echo "App Größe: $(du -sh "$APP")"
           mkdir -p ios/build/output/Payload
           cp -r "$APP" ios/build/output/Payload/TestApp.app
           cd ios/build/output
           zip -r TestApp.ipa Payload
-          echo "IPA erstellt:"
-          ls -lh TestApp.ipa
+          echo "IPA Größe: $(ls -lh TestApp.ipa)"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
