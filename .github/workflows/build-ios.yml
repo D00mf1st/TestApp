@@ -29,16 +29,7 @@ jobs:
           cd ios
           pod install --repo-update
 
-      - name: Debug - Liste iOS Dateien
-        run: |
-          echo "=== iOS Ordner Inhalt ==="
-          ls -la ios/
-          echo "=== Workspaces ==="
-          find ios -name "*.xcworkspace" -maxdepth 2
-          echo "=== Schemes ==="
-          find ios -name "*.xcscheme" -maxdepth 5
-
-      - name: Build .app direkt
+      - name: Build .app
         run: |
           WORKSPACE=$(find ios -name "*.xcworkspace" -maxdepth 2 | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
@@ -56,22 +47,28 @@ jobs:
             DEVELOPMENT_TEAM="" \
             build 2>&1 | tail -50
 
+      - name: Debug - Alle Info.plist finden
+        run: |
+          echo "=== Alle .app Ordner ==="
+          find ios/build/DerivedData -name "*.app" | grep -v ".appex"
+          echo ""
+          echo "=== Alle Info.plist Dateien ==="
+          find ios/build/DerivedData -name "Info.plist" | head -30
+
       - name: Package IPA
         run: |
-          APP=$(find ios/build/DerivedData -name "*.app" -path "*/Release-iphoneos/*" | grep -v ".appex" | head -1)
-          echo "App gefunden: $APP"
-          echo "Info.plist vorhanden:"
-          ls "$APP/Info.plist"
-          echo "App Inhalt:"
-          ls "$APP"
+          PLIST=$(find ios/build/DerivedData -name "Info.plist" \
+            -path "*/Release-iphoneos/*.app/Info.plist" \
+            | grep -v ".appex" | head -1)
+          echo "Info.plist gefunden: $PLIST"
+          APP=$(dirname "$PLIST")
+          echo "App Ordner: $APP"
           mkdir -p ios/build/output/Payload
           cp -r "$APP" ios/build/output/Payload/TestApp.app
-          echo "Payload Inhalt:"
-          ls ios/build/output/Payload/TestApp.app
           cd ios/build/output
           zip -r TestApp.ipa Payload
-          echo "IPA erstellt:"
-          ls -la TestApp.ipa
+          echo "IPA Größe:"
+          ls -lh TestApp.ipa
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
