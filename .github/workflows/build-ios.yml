@@ -58,12 +58,20 @@ jobs:
 
       - name: Package IPA
         run: |
-          APP=$(find ios/build/DerivedData -name "*.app" -path "*/Release-iphoneos/*" | head -1)
+          APP=$(find ios/build/DerivedData -name "*.app" -path "*/Release-iphoneos/*" | grep -v ".appex" | head -1)
           echo "App gefunden: $APP"
+          echo "Info.plist vorhanden:"
+          ls "$APP/Info.plist"
+          echo "App Inhalt:"
+          ls "$APP"
           mkdir -p ios/build/output/Payload
-          cp -r "$APP" ios/build/output/Payload/
+          cp -r "$APP" ios/build/output/Payload/TestApp.app
+          echo "Payload Inhalt:"
+          ls ios/build/output/Payload/TestApp.app
           cd ios/build/output
           zip -r TestApp.ipa Payload
+          echo "IPA erstellt:"
+          ls -la TestApp.ipa
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
