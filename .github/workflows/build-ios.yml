@@ -24,18 +24,28 @@ jobs:
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --non-interactive
 
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install --repo-update
+
       - name: Build Archive
         run: |
           cd ios
-          xcodebuild -workspace TestApp.xcworkspace \
+          xcodebuild \
+            -workspace TestApp.xcworkspace \
             -scheme TestApp \
             -configuration Release \
             -sdk iphoneos \
-            -archivePath build/TestApp.xcarchive \
+            -archivePath $PWD/build/TestApp.xcarchive \
             archive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            PROVISIONING_PROFILE=""
 
       - name: Package IPA manually
         run: |
