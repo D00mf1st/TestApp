@@ -24,34 +24,44 @@ jobs:
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --non-interactive
 
-      - name: Install CocoaPods dependencies
+      - name: Install CocoaPods
         run: |
           cd ios
           pod install --repo-update
 
-      - name: Build Archive
+      - name: Debug - Liste iOS Dateien
         run: |
-          cd ios
+          echo "=== iOS Ordner Inhalt ==="
+          ls -la ios/
+          echo "=== Workspaces ==="
+          find ios -name "*.xcworkspace" -maxdepth 2
+          echo "=== Schemes ==="
+          find ios -name "*.xcscheme" -maxdepth 5
+
+      - name: Build .app direkt
+        run: |
+          WORKSPACE=$(find ios -name "*.xcworkspace" -maxdepth 2 | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "Workspace: $WORKSPACE"
+          echo "Scheme: $SCHEME"
           xcodebuild \
-            -workspace TestApp.xcworkspace \
-            -scheme TestApp \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
-            -archivePath $PWD/build/TestApp.xcarchive \
-            archive \
+            -derivedDataPath ios/build/DerivedData \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGN_ENTITLEMENTS="" \
             DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            PROVISIONING_PROFILE=""
+            build 2>&1 | tail -50
 
-      - name: Package IPA manually
+      - name: Package IPA
         run: |
+          APP=$(find ios/build/DerivedData -name "*.app" -path "*/Release-iphoneos/*" | head -1)
+          echo "App gefunden: $APP"
           mkdir -p ios/build/output/Payload
-          cp -r ios/build/TestApp.xcarchive/Products/Applications/TestApp.app \
-            ios/build/output/Payload/
+          cp -r "$APP" ios/build/output/Payload/
           cd ios/build/output
           zip -r TestApp.ipa Payload
 
