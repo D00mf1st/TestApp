@@ -34,9 +34,10 @@ jobs:
           find ios/Pods -name "*.sh" | while read f; do
             if grep -q "xcframework" "$f" 2>/dev/null; then
               echo "Patching: $f"
-              sed -i 's/xcodebuild /xcodebuild CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" /g' "$f"
+              sed -i '' 's/xcodebuild /xcodebuild CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" /g' "$f"
             fi
           done
+          echo "Patching abgeschlossen"
 
       - name: Build App
         run: |
