@@ -27,15 +27,9 @@ jobs:
 
       - name: Package IPA
         run: |
-          APP=$(find build/DerivedData/Build/Products/Release-iphoneos \
-            -maxdepth 1 -name "*.app" | head -1)
-          echo "App: $APP"
-          echo "Größe: $(du -sh "$APP" | cut -f1)"
-          mkdir -p output/Payload
-          cp -r "$APP" output/Payload/TestApp.app
-          cd output
-          zip -r TestApp.ipa Payload
-          ls -lh TestApp.ipa
+          echo "=== Suche .app ==="
+          find build -name "*.app" 2>/dev/null || echo "Nichts in build/"
+          find . -name "*.app" -not -path "*/node_modules/*" 2>/dev/null | head -10
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
