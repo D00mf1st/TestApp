@@ -25,6 +25,12 @@ jobs:
             DEVELOPMENT_TEAM="" \
             build 2>&1 | tail -20
 
+      - name: Sign with ldid
+        run: |
+          brew install ldid
+          ldid -S build/DerivedData/Build/Products/Release-iphoneos/TestApp.app/TestApp
+          echo "Signiert!"
+
       - name: Package IPA
         run: |
           APP="build/DerivedData/Build/Products/Release-iphoneos/TestApp.app"
