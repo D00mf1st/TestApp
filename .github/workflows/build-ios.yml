@@ -1,0 +1,44 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build App
+        run: |
+          xcodebuild \
+            -project TestApp/TestApp.xcodeproj \
+            -scheme TestApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/DerivedData \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            build 2>&1 | tail -20
+
+      - name: Package IPA
+        run: |
+          APP=$(find build/DerivedData/Build/Products/Release-iphoneos \
+            -maxdepth 1 -name "*.app" | head -1)
+          echo "App: $APP"
+          echo "Größe: $(du -sh "$APP" | cut -f1)"
+          mkdir -p output/Payload
+          cp -r "$APP" output/Payload/TestApp.app
+          cd output
+          zip -r TestApp.ipa Payload
+          ls -lh TestApp.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestApp-IPA
+          path: output/TestApp.ipa
